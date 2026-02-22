@@ -1,3 +1,7 @@
+permissions:
+  contents: read
+  pull-requests: write
+
 name: Conventional Commit Check
 
 on:
@@ -28,3 +32,21 @@ jobs:
               pull_number: context.payload.pull_request.number,
               state: "closed"
             });
+      - name: Send email notification (Ethereal)
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.ethereal.email
+          server_port: 587
+          secure: false
+          username: ${{ secrets.ETHEREAL_USER }}
+          password: ${{ secrets.ETHEREAL_PASS }}
+          subject: "[CI Alert] PR closed - Conventional Commits failed"
+          to: ${{ secrets.NOTIFY_TO_EMAIL }}
+          from: ${{ secrets.ETHEREAL_USER }}
+          body: |
+            A pull request was closed automatically because Conventional Commits validation failed.
+
+            Repo: ${{ github.repository }}
+            PR: ${{ github.event.pull_request.title }}
+            URL: ${{ github.event.pull_request.html_url }}
