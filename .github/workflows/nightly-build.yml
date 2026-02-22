@@ -1,0 +1,104 @@
+name: Nightly Build and Push (Main)
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-build-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Start only the services the app/tests need
+      - name: Start DB + Redis
+        run: |
+          docker compose up -d db redis
+          docker compose ps
+
+      # Run tests inside the web container image context
+      - name: Run tests
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/app
+          REDIS_URL: redis://redis:6379
+          JWT_SECRET: supersecret
+          JWT_ALGORITHM: HS256
+          MAIL_USERNAME: ${{ secrets.ETHEREAL_USER }}
+          MAIL_PASSWORD: ${{ secrets.ETHEREAL_PASS }}
+          MAIL_SERVER: smtp.ethereal.email
+          MAIL_PORT: "587"
+          MAIL_FROM: ${{ secrets.ETHEREAL_USER }}
+          MAIL_FROM_NAME: Nightly CI
+          DOMAIN: localhost
+        run: |
+          # Run pytest inside the "web" service container
+          docker compose run --rm \
+            -e POSTGRES_USER \
+            -e POSTGRES_PASSWORD \
+            -e POSTGRES_DB \
+            -e DATABASE_URL \
+            -e REDIS_URL \
+            -e JWT_SECRET \
+            -e JWT_ALGORITHM \
+            -e MAIL_USERNAME \
+            -e MAIL_PASSWORD \
+            -e MAIL_SERVER \
+            -e MAIL_PORT \
+            -e MAIL_FROM \
+            -e MAIL_FROM_NAME \
+            -e DOMAIN \
+            web pytest -q
+
+      # Build + push only if tests pass
+      - name: Build and push nightly image to GHCR
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/fastapi-beyond-crud"
+          DATE_TAG=$(date -u +%Y%m%d)
+          docker build -t "$IMAGE:nightly-$DATE_TAG" -t "$IMAGE:nightly-latest" .
+          docker push "$IMAGE:nightly-$DATE_TAG"
+          docker push "$IMAGE:nightly-latest"
+
+      # Always cleanup containers
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+      # Email if ANY step above failed (tests or build/push)
+      - name: Email notification (nightly failed)
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.ethereal.email
+          server_port: 587
+          secure: false
+          username: ${{ secrets.ETHEREAL_USER }}
+          password: ${{ secrets.ETHEREAL_PASS }}
+          subject: "[Nightly Build Failed] fastapi-beyond-CRUD"
+          to: ${{ secrets.NOTIFY_TO_EMAIL }}
+          from: ${{ secrets.ETHEREAL_USER }}
+          body: |
+            Nightly build FAILED.
+
+            Repo: ${{ github.repository }}
+            Branch: main
+            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
