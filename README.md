@@ -92,6 +92,7 @@ pytest
 	14.Resolved missing pytest dependency in container.
 	15.Configured GHCR authentication and image push.
 	16.Verified successful image publication in GitHub Packages.
+    17. How to run project - clone repo, create environment cp .env.example .env, build and start - docker compose up --build
 
 
 
