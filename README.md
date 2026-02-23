@@ -75,6 +75,25 @@ Run the tests using this command
 ```bash
 pytest
 ```
+##Updated ReadMe
+	1.Forked the original repository and cloned it locally.
+	2.Ran docker compose up --build to rebuild the container and start the application.
+	3.Resolved Docker runtime error related to missing FastAPI executable.
+	4.Fixed dependency issues in requirements.txt during Docker build.
+	5.Created .github/workflows directory for GitHub Actions.
+	6.Implemented Conventional Commit validation workflow.
+	7.Configured workflow to automatically close PRs on commit validation failure.
+	8.Added Ethereal SMTP email notification for failed validation.
+	9.Committed and pushed the Conventional Commit workflow.
+	10.Created a test branch (test-commit-check) to validate failure behavior.
+	11.Verified PR auto-closing and failure screenshot.
+	12.Implemented nightly build workflow on the main branch.
+	13.Configured Docker build and pytest test execution in CI.
+	14.Resolved missing pytest dependency in container.
+	15.Configured GHCR authentication and image push.
+	16.Verified successful image publication in GitHub Packages.
+
+
 
 ## Contributing
 I welcome contributions to improve the documentation! You can contribute [here](https://github.com/jod35/fastapi-beyond-crud-docs).
